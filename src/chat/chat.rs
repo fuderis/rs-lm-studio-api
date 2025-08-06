@@ -83,7 +83,7 @@ impl Chat {
             }
         }
 
-        // send simple request:
+        // handle request:
         if !request.stream {
             let mut response = self.client.post(&url)
                 .json(&request)
@@ -94,7 +94,7 @@ impl Chat {
                 .await?;
 
             // filtering <think>..</think> block:
-            if !request.think {
+            if request.skip_think {
                 let re = re!(r"(?s)<think>.*?</think>");
                 
                 for choice in &mut response.choices {
@@ -111,96 +111,9 @@ impl Chat {
             }
 
             Ok(Some(response))
-        }
-        // send request as stream:
-        else
-        {
-            // init stream channel:
-            let (tx, rx) = mpsc::unbounded_channel::<Result<String>>();
-            let client = self.client.clone();
-            let url = url.clone();
-            let request_clone = request.clone();
-
-            // running async task:
-            tokio::spawn(async move {
-                let mut is_thinking = false;
-                let mut is_after_thinking = false;
-                
-                let response = client.post(&url)
-                    .json(&request_clone)
-                    .send()
-                    .await;
-
-                match response {
-                    Ok(response) => {
-                        let mut stream = response.bytes_stream();
-
-                        while let Some(item) = stream.next().await {
-                            match item {
-                                Ok(chunk) => {
-                                    let chunk = String::from_utf8_lossy(&chunk);
-
-                                    for line in chunk.lines() {
-                                        // parsing response line:
-                                        if line.starts_with("data: ") {
-                                            let data = &line[6..];
-                                            if data == "[DONE]" {
-                                                break;
-                                            }
-
-                                            let stream: Result<Stream> = json::from_str(data).map_err(Into::into);
-                                            let stream = if let Ok(r) = stream { r }else{ continue };
-
-                                            for StreamChoice { delta } in stream.choices {
-                                                if let Delta { content: Some(mut part) } = delta {
-                                                    // filtering <think>..</think> block:
-                                                    if !request.think {
-                                                        if is_thinking {
-                                                            if part.contains("</think>") {
-                                                                is_thinking = false;
-                                                                is_after_thinking = true;
-                                                            }
-                                                            continue;
-                                                        }
-                                                        else if part.contains("<think>") {
-                                                            is_thinking = true;
-                                                            continue;
-                                                        }
-
-                                                        // trim extra spaces:
-                                                        if is_after_thinking {
-                                                            part = part.trim_start().to_string();
-                                                            is_after_thinking = false;
-                                                        }
-                                                    }
-                                                    
-                                                    // send answer part to channel:
-                                                    if tx.send(Ok(part)).is_err() {
-                                                        break;
-                                                    }
-                                                } else {
-                                                    continue;
-                                                }
-                                            }
-                                        }
-                                    }
-                                },
-
-                                Err(e) => {
-                                    let _ = tx.send(Err(e.into()));
-                                    break;
-                                }
-                            }
-                        }
-                    },
-                    
-                    Err(e) => {
-                        let _ = tx.send(Err(e.into()));
-                    }
-                }
-            });
-
-            self.reader = Some( ResponseReader::new(UnboundedReceiverStream::new(rx), request.context) );
+        } else {
+            // spawning stream reader:
+            self.spawn_reader(url.clone(), request.clone(), request.context, request.skip_think).await?;
 
             Ok(None)
         }
@@ -210,11 +123,133 @@ impl Chat {
     async fn handle_prompt(&mut self, mut request: Prompt) -> Result<Option<Response>> {
         let url = fmt!("{}/v1/completions", self.host);
 
-        todo!();
+        // choose AI model:
+        if let Model::Custom(s) = &request.model {
+            if s.is_empty() {
+                request.model = self.model.clone();
+            }
+        }
+
+        // handle request:
+        if !request.stream {
+            let mut response = self.client.post(&url)
+                .json(&request)
+                .send()
+                .await?
+                .error_for_status()?
+                .json::<Response>()
+                .await?;
+
+            if request.skip_think {
+                let re = re!(r"(?s)<think>.*?</think>");
+                
+                for choice in &mut response.choices {
+                    choice.message.content = re.replace_all(&choice.message.content, "").trim().to_string();
+                }
+            }
+
+            Ok(Some(response))
+        } else {
+            // spawning stream reader:
+            self.spawn_reader(url.clone(), request.clone(), false, request.skip_think).await?;
+
+            Ok(None)
+        }
+    }
+
+    /// Spawns stream reader
+    async fn spawn_reader<J>(&mut self, url: String, request: J, context: bool, skip_think: bool) -> Result<()>
+    where
+        J: Serialize + Send + Sync + 'static,
+    {
+        let (tx, rx) = mpsc::unbounded_channel::<Result<StreamChoice>>();
+        let client = self.client.clone();
+
+        self.reader = Some( ResponseReader::new(UnboundedReceiverStream::new(rx), context) );
+        
+        tokio::spawn(async move {
+            let mut is_thinking = false;
+            let mut is_after_thinking = false;
+            
+            let response = client.post(&url)
+                .json(&request)
+                .send()
+                .await;
+
+            match response {
+                Ok(response) => {
+                    let mut stream = response.bytes_stream();
+
+                    while let Some(item) = stream.next().await {
+                        match item {
+                            Ok(chunk) => {
+                                let chunk = String::from_utf8_lossy(&chunk);
+
+                                for line in chunk.lines() {
+                                    // parsing response line:
+                                    if line.starts_with("data: ") {
+                                        let data = &line[6..];
+                                        if data == "[DONE]" {
+                                            break;
+                                        }
+
+                                        let stream: Result<Stream> = json::from_str(data).map_err(Into::into);
+                                        let stream = if let Ok(r) = stream { r }else{ continue };
+
+                                        for mut choice in stream.choices {
+                                            if let Some(text) = choice.text_mut() {
+                                                // filtering <think>..</think> block:
+                                                if skip_think {
+                                                    if is_thinking {
+                                                        if text.contains("</think>") {
+                                                            is_thinking = false;
+                                                            is_after_thinking = true;
+                                                        }
+                                                        continue;
+                                                    }
+                                                    else if text.contains("<think>") {
+                                                        is_thinking = true;
+                                                        continue;
+                                                    }
+
+                                                    // trim extra spaces:
+                                                    if is_after_thinking {
+                                                        *text = text.trim_start().to_string();
+                                                        is_after_thinking = false;
+                                                    }
+                                                }
+                                                
+                                                // send answer part to channel:
+                                                if tx.send(Ok(choice)).is_err() {
+                                                    break;
+                                                }
+                                            } else {
+                                                continue;
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+
+                            Err(e) => {
+                                let _ = tx.send(Err(e.into()));
+                                break;
+                            }
+                        }
+                    }
+                },
+                
+                Err(e) => {
+                    let _ = tx.send(Err(e.into()));
+                }
+            }
+        });
+
+        Ok(())
     }
 
     /// Read next stream choice
-    pub async fn next(&mut self) -> Option<Result<String>> {
+    pub async fn next(&mut self) -> Option<Result<StreamChoice>> {
         if let Some(reader) = &mut self.reader {
             let result = reader.next().await;
 
@@ -224,6 +259,7 @@ impl Chat {
             
             result
         } else {
+            self.reader = None;
             None
         }
     }

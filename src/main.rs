@@ -1,4 +1,4 @@
-extern crate lm_studio_api;  use lm_studio_api::{ prelude::*, Chat, Completions, Context, Model };
+extern crate lm_studio_api;  use lm_studio_api::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -55,11 +55,11 @@ async fn main() -> Result<()> {
         eprint!("<< ");
 
         // init request:
-        let request = Completions {
+        let request = Messages {
             messages: vec![buf.into()],
             context: true,
             stream: true,
-            ..Completions::default()
+            ..Messages::default()
         };
         
         // sending request:
@@ -68,9 +68,8 @@ async fn main() -> Result<()> {
         // reading AI results:
         while let Some(result) = chat.next().await {
             match result {
-                Ok(text) if !text.is_empty() => eprint!("{text}"),
+                Ok(r) => if let Some(text) = r.text() { eprint!("{text}"); }else{ },
                 Err(e) => eprintln!("Error: {e}"),
-                _ => {}
             }
         }
     }

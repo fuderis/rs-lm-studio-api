@@ -1,6 +1,7 @@
 #![allow(unused_imports)]
 
-pub use crate::{ Result, Error };
+pub use crate::{ StdResult, Result, Error };
+pub use crate::{ Chat, Messages, Prompt, Context, Model };
 
 pub(crate) use macron::*;
 pub(crate) use serde::{ Serialize, Deserialize };
