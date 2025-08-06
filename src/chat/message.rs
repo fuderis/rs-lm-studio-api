@@ -19,7 +19,7 @@ impl Message {
         }
     }
 
-    /// Возвращает длину контента в символах
+    /// Returns content chars count
     pub fn len(&self) -> usize {
         self.content.chars().count()
     }

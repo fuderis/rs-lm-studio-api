@@ -33,8 +33,12 @@ impl Context {
         self.context_tokens += message.content.chars().count();
         self.messages.push(message);
 
+        // WARN: This is a temporary solution!
+        // TODO: Write function for dividing text into tokens..
+        let tokens_limit = self.context_limit * 4;
+        
         // remove old extra messages:
-        while self.messages.len() > 2 && self.context_tokens > self.context_limit {
+        while self.messages.len() > 2 && self.context_tokens > tokens_limit {
             self.context_tokens -= self.messages[1].content.chars().count();
             self.messages.remove(1);
         }

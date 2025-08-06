@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use super::{ Choice, StreamChoice, Usage, Role, Message };
+use super::{ Choice, Usage, Role, Message };
 
 // Chat response
 #[derive(Debug, Clone, Deserialize)]
@@ -29,14 +29,14 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 // Chat response stream
 #[derive(Debug)]
 pub struct ResponseReader {
-    pub receiver: UnboundedReceiverStream<std::result::Result<StreamChoice, reqwest::Error>>,
+    pub receiver: UnboundedReceiverStream<Result<String>>,
     pub message: Message,
     pub is_ready: bool,
     pub context: bool
 }
 
 impl ResponseReader {
-    pub fn new(receiver: UnboundedReceiverStream<std::result::Result<StreamChoice, reqwest::Error>>, context: bool) -> Self {
+    pub fn new(receiver: UnboundedReceiverStream<Result<String>>, context: bool) -> Self {
         Self {
             receiver,
             message: Message { role: Role::Assistant, content: str!("") },
@@ -45,20 +45,15 @@ impl ResponseReader {
         }
     }
 
-    pub async fn next(&mut self) -> Option<std::result::Result<String, reqwest::Error>> {
+    pub async fn next(&mut self) -> Option<Result<String>> {
         let result = self.receiver.next().await;
 
         match result {
             Some(result) => {
                 match result {
-                    Ok(choice) => {
-                        if let Some(text) = choice.delta.content {
-                            self.message.content.push_str(&text);
-
-                            Some(Ok(text))
-                        } else {
-                            Some(Ok(String::new()))
-                        }
+                    Ok(part) => {
+                        self.message.content.push_str(&part);
+                        Some(Ok(part))
                     },
 
                     Err(e) => Some(Err(e))

@@ -1,6 +1,6 @@
 pub mod role;       pub use role::Role;
 pub mod message;    pub use message::Message;
-pub mod request;    pub use request::Request;
+pub mod request;    pub use request::{ Request, Messages, Prompt };
 
 pub mod delta;      pub use delta::Delta;
 pub mod usage;      pub use usage::Usage;
