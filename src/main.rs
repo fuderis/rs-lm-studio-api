@@ -21,7 +21,6 @@ impl SystemInfo for SystemPrompt {
     }
 }
 
-
 #[tokio::main]
 async fn main() -> Result<()> {
     println!("Loading chat models..");
