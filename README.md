@@ -8,95 +8,108 @@
 
 # LM Studio API
 
-## Introduction
+Is a high-performance and user-friendly library for interacting with locally running Llama-based language models via LM Studio. It allows you to send requests to models, receive responses both in full and in streaming mode, and manage model parameters.
 
-This API is designed for interacting with LM Studio. It allows you to send requests to locally running models, receive results, and manage model parameters. The API uses JSON for data exchange.
+
+## Key features:
+
+* Support for both regular and streaming response modes.
+* Context management and system prompt customization.
+* Flexible configuration of request and model parameters.
+* Supports structured response schemes in JSON format.
 
 
 ## Examples:
 
-#### No Stream Using:
-
 ```rust
-// init chat:
-let mut chat = Chat::new(
-    Model::Gemma3_4b,   // select AI model
-    Context::new("You're Jarvis - my personal assistant. Call me master", 4090),  // write system prompt + set max size of messages context
-    "9090"    // server IP port
-);
+use lm_studio_api::prelude::*;
 
-// init request:
-let request = Request {
-    messages: vec!["Hi, what's your name?".into()],
-    context: true,
-    stream: false,  // disable stream mode
-    ..Request::default()
-};
+struct SystemPrompt;
 
-// sending request:
-let result = chat.send(request).await;
+impl SystemInfo for SystemPrompt {
+    fn new() -> Box<Self> {
+        Box::new(Self {})
+    }
+    
+    fn update(&mut self) -> String {
+        format!(r##"
+            You're Jarvis - is a personal assistant created by the best programmer 'Fuderis' for your convenience.
 
-match result {
-    // print results part:
-    Ok(Some(response)) => println!("{}", response.text()),
-
-    // print error:
-    Err(e) => eprintln!("Error: {e}"),
-
-    _ => {}
+            Response briefly and clearly.
+            Response language: english.
+            
+            Actual system Info:
+            * date_time: 1969-10-29 22:30:00;
+            * location: United States, New York;
+        "##)
+    }
 }
 
-```
+#[tokio::main]
+async fn main() -> Result<()> {
+    println!("Loading chat models..");
 
-#### Stream Using (real-time generation):
+    // init chat:
+    let mut chat = Chat::new(
+        Model::Gemma3_4b,  // AI model
+        Context::new(SystemPrompt::new(), 8192),  // system prompt + max tokens
+        9090,  // server port
+    ).await?;
 
-```rust
-use lm_studio_api::{ Model, Context, Chat, Request };
+    println!("Chat ready, type message:\n");
 
-// init chat:
-let mut chat = Chat::new(
-    Model::Gemma3_4b,   // select AI model
-    Context::new("You're Jarvis - my personal assistant. Call me master", 4090),  // write system prompt + set max size of messages context
-    "9090"    // server IP port
-);
+    // reading user inputs:
+    loop {
+        eprint!(">> ");
+        
+        // reading input:
+        let mut buf = String::new();
+        std::io::stdin().read_line(&mut buf).unwrap();
 
-loop {
-    // reading user input:
-    eprint!("\n>> ");
-    
-    let mut buf = String::new();
-    std::io::stdin().read_line(&mut buf).unwrap();
+        eprint!("<< ");
 
-    // generating answer:
-    eprint!("<< ");
-    
-    // init request:
-    let request = Request {
-        messages: vec![buf.into()],
-        context: true,
-        stream: true,  // enable stream mode
-        ..Request::default()
-    };
-    
-    // sending request:
-    let _ = chat.send(request).await.unwrap();
+        // generating request:
+        let request = Messages {
+            messages: vec![ buf.into() ],
+            context: true,
+            stream: true,
+            /* format: Some(Format::json(
+                "commands",
+                vec![
+                    Schema::object(
+                        "datetime",
+                        "returns actual datetime",
+                        macron::hash_map! {
+                            "time": Schema::string("only time", Some("time")),
+                            "date": Schema::string("only date", Some("date")),
+                        }
+                    ),
 
-    // reading AI results:
-    while let Some(result) = chat.next().await {
-        match result {
-            // print results part:
-            Ok(text) if !text.is_empty() => {
-                eprint!("{text}");
-            },
+                    Schema::object(
+                        "location",
+                        "returns user geolocation",
+                        macron::hash_map! {
+                            "location": Schema::string("user geolocation", None),
+                        }
+                    ),
+                ],
+                false
+            )), */
+            ..Default::default()
+        };
+        
+        // sending request:
+        let _ = chat.send(request.into()).await?;
 
-            // print error:
-            Err(e) => {
-                eprintln!("Error: {e}");
-                break;
-            },
-
-            _ => {}
+        // reading results:
+        while let Some(result) = chat.next().await {
+            match result {
+                Ok(r) => if let Some(text) = r.text() { eprint!("{text}"); }else{ },
+                Err(e) => eprintln!("Error: {e}"),
+            }
         }
+
+        println!("\n");
     }
 }
 ```
@@ -108,6 +121,7 @@ Distributed under the MIT license.
 
 ## Feedback:
 
-You can contact me via GitHub or send a message to my Telegram [@fuderis](https://t.me/fuderis).
+You can [find me here](https://t.me/fuderis), also [see my channel](https://t.me/fuderis_club).
+I welcome your suggestions and feedback!
 
-This library is constantly evolving, and I welcome your suggestions and feedback.
+> Copyright (c) 2025 *Bulat Sh.* ([fuderis](https://t.me/fuderis))

@@ -23,4 +23,9 @@ impl Message {
     pub fn len(&self) -> usize {
         self.content.chars().count()
     }
+
+    /// Returns message text
+    pub fn text(&self) -> &String {
+        &self.content
+    }
 }

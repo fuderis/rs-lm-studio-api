@@ -40,9 +40,9 @@ pub enum Model {
     #[display = "qwen/qwen3-4b"]
     Qwen3_4b,
     
-    // Custom:
+    // Other models:
     #[from]
     #[serde(untagged)]
     #[display = "{0}"]
-    Custom(String)
+    Other(String)
 }

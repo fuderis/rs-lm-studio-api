@@ -1,8 +1,8 @@
 use crate::prelude::*;
 use super::{ Choice, StreamChoice, Usage, Role, Message };
 
-// Chat response
-#[derive(Debug, Clone, Deserialize)]
+/// Chat response
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Response {
     pub id: String,
     pub object: String,
@@ -12,13 +12,14 @@ pub struct Response {
     pub usage: Usage,
     #[serde(default)]
     pub stats: HashMap<String, serde_json::Value>,
-    pub system_fingerprint: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub system_fingerprint: Option<String>,
 }
 
 impl Response {
-    // Get reponse text
-    pub fn text(&self) -> &str {
-        &self.choices[0].message.content
+    /// Returns response text
+    pub fn text(&self) -> String {
+        self.choices[0].text().clone().unwrap()
     }
 }
 
@@ -26,7 +27,7 @@ impl Response {
 use futures::StreamExt;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
-// Chat stream reader
+/// Chat stream reader
 #[derive(Debug)]
 pub struct ResponseReader {
     pub receiver: UnboundedReceiverStream<Result<StreamChoice>>,

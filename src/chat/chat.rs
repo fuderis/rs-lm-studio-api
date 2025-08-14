@@ -8,15 +8,15 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 
 /// The LM Studio chat
 pub struct Chat {
-    model: Model,
-    context: Context,
-    host: String,
-    client: Client,
-    reader: Option<ResponseReader>,
+    pub(crate) model: Model,
+    pub(crate) context: Context,
+    pub(crate) host: String,
+    pub(crate) client: Client,
+    pub(crate) reader: Option<ResponseReader>,
 }
 
-impl Chat {   
-    /// Creates a new chat
+impl Chat {
+    /// Creates a new simple chat
     pub async fn new<M: Into<Model>, C: Into<Context>>(model: M, context: C, port: u16) -> Result<Self> {
         let mut chat = Self {
             model: model.into(),
@@ -33,13 +33,12 @@ impl Chat {
     }
 
     /// Loads AI model to memory
-    async fn load_model<M: Into<Model>>(&mut self, model: M) -> Result<()> {
-        let request = Messages {
+    pub async fn load_model<M: Into<Model>>(&mut self, model: M) -> Result<()> {
+        let request = Prompt {
             model: model.into(),
-            messages: vec!["Hello".into()],
-            context: false,
+            prompt: str!("Hello"),
             stream: false,
-            ..Messages::default()
+            ..Default::default()
         }.into();
 
         let _ = self.send(request).await?;
@@ -49,6 +48,8 @@ impl Chat {
 
     /// Send request to chat
     pub async fn send(&mut self, request: Request) -> Result<Option<Response>> {
+        self.context.update_system_info().await;
+        
         match request {
             Request::Messages(request) => self.handle_messages(request).await,
             Request::Prompt(request) => self.handle_prompt(request).await,
@@ -58,6 +59,13 @@ impl Chat {
     /// Handle messages request
     async fn handle_messages(&mut self, mut request: Messages) -> Result<Option<Response>> {
         let url = fmt!("{}/v1/chat/completions", self.host);
+
+        // choose AI model:
+        if let Model::Other(s) = &request.model {
+            if s.is_empty() {
+                request.model = self.model.clone();
+            }
+        }
         
         // add request to context:
         request.messages = if request.context {
@@ -68,20 +76,12 @@ impl Chat {
             self.context.get()
         } else {
             let mut context = self.context.clone();
-
             for msg in request.messages {
                 context.add(msg);
             }
 
             context.get()
         };
-
-        // choose AI model:
-        if let Model::Custom(s) = &request.model {
-            if s.is_empty() {
-                request.model = self.model.clone();
-            }
-        }
 
         // handle request:
         if !request.stream {
@@ -98,14 +98,16 @@ impl Chat {
                 let re = re!(r"(?s)<think>.*?</think>");
                 
                 for choice in &mut response.choices {
-                    choice.message.content = re.replace_all(&choice.message.content, "").trim().to_string();
+                    let message = choice.message.as_mut().unwrap();
+                    message.content = re.replace_all(&message.content, "").trim().to_string();
                 }
             }
 
             // add response to context:
             if request.context {
                 if let Some(choice) = response.choices.get(0) {
-                    let answer = Message::new(Role::Assistant, choice.message.content.clone());
+                    let message = choice.message.as_ref().unwrap();
+                    let answer = Message::new(Role::Assistant, message.content.clone());
                     self.context.add(answer);
                 }
             }
@@ -119,16 +121,26 @@ impl Chat {
         }
     }
 
-    /// Handle prompt request
+    /// Handle prompt request (without any context)
     async fn handle_prompt(&mut self, mut request: Prompt) -> Result<Option<Response>> {
         let url = fmt!("{}/v1/completions", self.host);
 
         // choose AI model:
-        if let Model::Custom(s) = &request.model {
+        if let Model::Other(s) = &request.model {
             if s.is_empty() {
                 request.model = self.model.clone();
             }
         }
+        
+        // add request to context:
+        request.prompt = if request.context {
+            self.context.add(request.prompt);
+            self.context.get_as_string()
+        } else {
+            let mut context = self.context.clone();
+            context.add(request.prompt);
+            context.get_as_string()
+        };
 
         // handle request:
         if !request.stream {
@@ -144,7 +156,8 @@ impl Chat {
                 let re = re!(r"(?s)<think>.*?</think>");
                 
                 for choice in &mut response.choices {
-                    choice.message.content = re.replace_all(&choice.message.content, "").trim().to_string();
+                    let text = choice.text.as_mut().unwrap();
+                    *text = re.replace_all(&text, "").trim().to_string();
                 }
             }
 
@@ -159,8 +172,7 @@ impl Chat {
 
     /// Spawns stream reader
     async fn spawn_reader<J>(&mut self, url: String, request: J, context: bool, skip_think: bool) -> Result<()>
-    where
-        J: Serialize + Send + Sync + 'static,
+    where J: Serialize + Send + Sync + 'static,
     {
         let (tx, rx) = mpsc::unbounded_channel::<Result<StreamChoice>>();
         let client = self.client.clone();
