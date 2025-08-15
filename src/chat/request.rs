@@ -7,6 +7,7 @@ use super::{ Model, Message, format::* };
 pub enum Request {
     #[from] Messages(Messages),
     #[from] Prompt(Prompt),
+    #[from] Embeddings(Embeddings),
 }
 
 
@@ -69,6 +70,23 @@ impl ::std::default::Default for Prompt {
             stream: false,
             stop: str!("\n"),
             skip_think: true,
+        }
+    }
+}
+
+
+/// Chat embeddings request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Embeddings {
+    pub model: Model,
+    pub input: Vec<String>,
+}
+
+impl ::std::default::Default for Embeddings {
+    fn default() -> Self {
+        Self {
+            model: Model::Other(str!()),
+            input: vec![],
         }
     }
 }

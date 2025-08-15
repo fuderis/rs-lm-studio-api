@@ -1,25 +1,53 @@
 use crate::prelude::*;
-use super::{ Choice, StreamChoice, Usage, Role, Message };
+use super::{ Choice, StreamChoice, Usage, Role, Message, Embedding };
 
 /// Chat response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Response {
-    pub id: String,
-    pub object: String,
-    pub created: u64,
-    pub model: String,
-    pub choices: Vec<Choice>,
-    pub usage: Usage,
-    #[serde(default)]
-    pub stats: HashMap<String, serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub system_fingerprint: Option<String>,
+    pub id: Option<String>,
+    pub object: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created: Option<u64>,
+    pub model: String,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub choices: Vec<Choice>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub data: Vec<Embedding>,
+    pub usage: Usage,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stats: Option<HashMap<String, Value>>,
+    #[serde(rename = "system_fingerprint")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fingerprint: Option<String>,
 }
 
 impl Response {
     /// Returns response text
-    pub fn text(&self) -> String {
-        self.choices[0].text().clone().unwrap()
+    pub fn text(&self) -> Option<String> {
+        if !self.choices.is_empty() {
+            let text = self.choices[0].text().clone().unwrap();
+            
+            Some(text)
+        } else {
+            None
+        }
+    }
+
+    /// Returns embedding data
+    pub fn data(&self) -> Option<Vec<Vec<f32>>> {
+        if !self.data.is_empty() {
+            let data = self.data.clone()
+                .into_iter()
+                .map(|embed| embed.embedding)
+                .collect::<Vec<_>>();
+
+            Some(data)
+        } else {
+            None
+        }
     }
 }
 

@@ -53,6 +53,7 @@ impl Chat {
         match request {
             Request::Messages(request) => self.handle_messages(request).await,
             Request::Prompt(request) => self.handle_prompt(request).await,
+            Request::Embeddings(request) => self.handle_embeddings(request).await,
         }
     }
 
@@ -121,7 +122,7 @@ impl Chat {
         }
     }
 
-    /// Handle prompt request (without any context)
+    /// Handle prompt request
     async fn handle_prompt(&mut self, mut request: Prompt) -> Result<Option<Response>> {
         let url = fmt!("{}/v1/completions", self.host);
 
@@ -168,6 +169,29 @@ impl Chat {
 
             Ok(None)
         }
+    }
+
+    /// Handle embeddings request
+    async fn handle_embeddings(&mut self, mut request: Embeddings) -> Result<Option<Response>> {
+        let url = fmt!("{}/v1/embeddings", self.host);
+
+        // choose AI model:
+        if let Model::Other(s) = &request.model {
+            if s.is_empty() {
+                request.model = self.model.clone();
+            }
+        }
+        
+        // handle request:
+        let response = self.client.post(&url)
+            .json(&request)
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<Response>()
+            .await?;
+
+        Ok(Some(response))
     }
 
     /// Spawns stream reader
