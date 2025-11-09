@@ -2,7 +2,7 @@ use crate::prelude::*;
 use super::schema::*;
 
 /// Response format kind
-#[derive(Debug, Display, Clone, Serialize, Deserialize)]
+#[derive(Debug, Display, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub enum FormatKind {
     #[serde(rename = "json_schema")]
     #[display = "json_schema"]
@@ -10,7 +10,7 @@ pub enum FormatKind {
 }
 
 /// Response format
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Format {
     #[serde(rename = "type")]
     pub kind: FormatKind,

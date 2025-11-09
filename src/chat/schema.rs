@@ -1,7 +1,7 @@
  use crate::prelude::*;
 
 /// Response format JSON schema
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct JsonSchema {
     pub name: String,
     #[serde(rename = "schema")]
@@ -11,7 +11,7 @@ pub struct JsonSchema {
 
 
 /// Response format schemes
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub enum Schemes {
     #[serde(rename = "oneOf")]
     OneOf(Vec<Schema>),
@@ -25,7 +25,7 @@ pub enum Schemes {
 
 
 /// Response format schema kind
-#[derive(Debug, Display, Clone, Serialize, Deserialize)]
+#[derive(Debug, Display, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum SchemaKind {
     Object,
@@ -39,7 +39,7 @@ pub enum SchemaKind {
 
 
 /// Response format schema
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Schema {
     #[serde(rename = "type")]
     pub kind: SchemaKind,

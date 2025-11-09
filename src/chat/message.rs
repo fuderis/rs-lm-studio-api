@@ -2,7 +2,7 @@ use crate::prelude::*;
 use super::Role;
 
 // A message
-#[derive(Debug, Clone, From, Serialize, Deserialize)]
+#[derive(Debug, Clone, From, Serialize, Deserialize, Eq, PartialEq)]
 #[from(String, "Self { role: Role::User, content: value.into() }")]
 #[from(&str, "Self { role: Role::User, content: value.into() }")]
 pub struct Message {

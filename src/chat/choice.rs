@@ -2,7 +2,7 @@ use crate::prelude::*;
 use super::{ Message, Delta };
 
 // Response choice
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Choice {
     pub index: usize,
     pub logprobs: Option<serde_json::Value>,
