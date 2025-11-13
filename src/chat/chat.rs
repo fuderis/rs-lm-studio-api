@@ -90,7 +90,7 @@ impl Chat {
 
         // handle request:
         if !request.stream {
-            let mut response = self.client.post(&url)
+            let response = self.client.post(&url)
                 .json(&request)
                 .send()
                 .await?
