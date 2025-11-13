@@ -50,9 +50,9 @@ impl SystemInfo for SystemPrompt {
 async fn main() -> Result<()> {
     // init chat:
     let mut chat = Chat::new(
-        Model::Gemma3_4b,                                       // AI model
+        Model::Gemma3_4b,                         // AI model
         Context::new(SystemPrompt::new(), 8192),  // system prompt + max tokens
-        9090,                                                  // server port
+        9090,                                     // server port
     );
 
     // generating request:
