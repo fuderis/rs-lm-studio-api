@@ -670,8 +670,9 @@ checksum = "241eaef5fd12c88705a01fc1066c48c4b36e0dd4377dcdc7ec3942cea7a69956"
 
 [[package]]
 name = "lm-studio-api"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
+ "base64",
  "futures",
  "futures-util",
  "macron",
@@ -702,9 +703,9 @@ checksum = "13dc2df351e3202783a1fe0d44375f7295ffb4049267b0f3018346dc122a1d94"
 
 [[package]]
 name = "macron"
-version = "0.1.9"
+version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "869ebf5d2e1f24702df6c5ffc8492afc5085d92a82fd59b7bbda8da034fe6c3a"
+checksum = "179a6cd723da9aff67b3bddc4804c5a427fc6b2fb599b6358add7d9d3a31a6ac"
 dependencies = [
  "macron-collections",
  "macron-impl-display",
@@ -738,9 +739,9 @@ dependencies = [
 
 [[package]]
 name = "macron-impl-error"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7958af320e5974a92ff3db817370fb536500e00d78ac962add78ad19062b7d4"
+checksum = "f7011da048b35459f187b205f7721f5e0329c262a84b5b2a91ea781d11877eb5"
 dependencies = [
  "quote",
  "syn",

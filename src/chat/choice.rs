@@ -15,24 +15,12 @@ pub struct Choice {
 
 impl Choice {
     /// Returns response string
-    pub fn text(&self) -> Option<String> {
-        Some(
-            self.message
+    pub fn text(&self) -> String {
+        self.message
             .as_ref()
             .map_or_else(
                 || self.text.clone().unwrap_or_default(),
-                |msg| msg.content.clone(),
-            )
-        )
-    }
-
-    /// Returns mutable response string
-    pub fn text_mut(&mut self) -> Option<&mut String> {
-        self.message
-            .as_mut()
-            .map_or_else(
-                || self.text.as_mut(),
-                |msg| Some(&mut msg.content),
+                |msg| msg.text()
             )
     }
 }

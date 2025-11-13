@@ -7,14 +7,14 @@ use tiktoken_rs::{ CoreBPE, cl100k_base };
 pub struct Context {
     tokenizer: CoreBPE,
     pub messages: Vec<Message>,
-    pub system_prompt: Arc<Mutex<Box<dyn SystemInfo>>>,
+    pub system_prompt: Arc<Mutex<Box<dyn SystemInfo + Send + Sync>>>,
     pub tokens_limit: u32,
     pub total_tokens: u32,
 }
 
 impl Context {
     /// Creates a new chat context
-    pub fn new(system_prompt: Box<dyn SystemInfo>, tokens_limit: u32) -> Self {
+    pub fn new(system_prompt: Box<dyn SystemInfo + Send + Sync>, tokens_limit: u32) -> Self {
         // init tokeninzer:
         let tokenizer = cl100k_base().expect("Failed to create tokenizer");
         
@@ -38,7 +38,7 @@ impl Context {
     /// Add a message to context
     pub fn add<M: Into<Message>>(&mut self, message: M) {
         let message = message.into();
-        let tokens_count = self.count_tokens(message.text());
+        let tokens_count = self.count_tokens(&message.text());
 
         // add message to context:
         self.messages.push(message);
@@ -46,7 +46,7 @@ impl Context {
 
         // remove old messages:
         while self.messages.len() > 3 && self.total_tokens > self.tokens_limit {
-            let removed_count = self.count_tokens(self.messages[1].text()) as u32;
+            let removed_count = self.count_tokens(&self.messages[1].text()) as u32;
 
             self.messages.remove(1);
             self.total_tokens -= removed_count;
@@ -62,7 +62,7 @@ impl Context {
     pub fn get_as_string(&self) -> String {
         self.messages.clone()
             .into_iter()
-            .map(|msg| msg.text().to_owned())
+            .map(|msg| msg.text())
             .collect::<Vec<_>>()
             .join("\n\n")
     }
@@ -84,6 +84,7 @@ impl Context {
 
     /// Updates the actual system info
     pub async fn update_system_info(&mut self) {
-        self.messages[0].content = self.system_prompt.lock().await.update();
+        let text = self.system_prompt.lock().await.update();
+        self.messages[0].content = vec![Into::<Content>::into(text)];
     }
 }

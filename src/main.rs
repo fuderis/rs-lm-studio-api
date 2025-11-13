@@ -1,5 +1,6 @@
-extern crate lm_studio_api;  use lm_studio_api::prelude::*;
+use lm_studio_api::prelude::*;
 
+/// The system prompt
 struct SystemPrompt;
 
 impl SystemInfo for SystemPrompt {
@@ -9,82 +10,75 @@ impl SystemInfo for SystemPrompt {
     
     fn update(&mut self) -> String {
         format!(r##"
-            You're Jarvis - is a personal assistant created by the best programmer 'Fuderis' for your convenience.
+            You're Jarvis — is a personal assistant created by the best programmer 'Fuderis'.
 
             Response briefly and clearly.
-            Response language: english.
+            Response language: English.
             
             Actual system Info:
-            * date_time: 1969-10-29 22:30:00;
-            * location: United States, New York;
+            * datetime: 1969-10-29 22:30:00.
+            * location: Russian Federation, Moscow.
         "##)
     }
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("Loading chat models..");
-
     // init chat:
     let mut chat = Chat::new(
-        Model::Gemma3_4b,  // AI model
+        Model::Gemma3_4b,                                       // AI model
         Context::new(SystemPrompt::new(), 8192),  // system prompt + max tokens
-        9090,  // server port
-    ).await?;
+        9090,                                                  // server port
+    );
 
-    println!("Chat ready, type message:\n");
-
-    // reading user inputs:
-    loop {
-        eprint!(">> ");
-        
-        // reading input:
-        let mut buf = String::new();
-        std::io::stdin().read_line(&mut buf).unwrap();
-
-        eprint!("<< ");
-        
-        // generating request:
-        let request = Messages {
-            messages: vec![ buf.into() ],
-            context: true,
-            stream: true,
-            /* format: Some(Format::json(
-                "commands",
-                vec![
-                    Schema::object(
-                        "datetime",
-                        "returns actual datetime",
-                        macron::hash_map! {
-                            "time": Schema::string("only time", Some("time")),
-                            "date": Schema::string("only date", Some("date")),
-                        }
-                    ),
-
-                    Schema::object(
-                        "location",
-                        "returns user geolocation",
-                        macron::hash_map! {
-                            "location": Schema::string("user geolocation", None),
-                        }
-                    ),
-                ],
-                false
-            )), */
-            ..Default::default()
-        };
-        
-        // sending request:
-        let _ = chat.send(request.into()).await?;
-
-        // reading results:
-        while let Some(result) = chat.next().await {
-            match result {
-                Ok(r) => if let Some(text) = r.text() { eprint!("{text}"); }else{ },
-                Err(e) => eprintln!("Error: {e}"),
+    // generating request:
+    let request = Messages {
+        messages: vec![
+            Message {
+                role: Role::User,
+                content: vec![
+                    Content::Text { text: "What is shown in the picture?".into() },
+                    Content::Image { image: Image::from_file("rust-logo.png").unwrap() }
+                ]
             }
-        }
+        ],
+        context: true,
+        stream: true,
+        /* format: Some(Format::json(
+            "commands",
+            vec![
+                Schema::object(
+                    "datetime",
+                    "returns actual datetime",
+                    macron::hash_map! {
+                        "time": Schema::string("only time", Some("time")),
+                        "date": Schema::string("only date", Some("date")),
+                    }
+                ),
 
-        println!("\n");
+                Schema::object(
+                    "location",
+                    "returns user geolocation",
+                    macron::hash_map! {
+                        "location": Schema::string("user geolocation", None),
+                    }
+                ),
+            ],
+            false
+        )), */
+        ..Default::default()
+    };
+    
+    // sending request:
+    let _ = chat.send(request.into()).await?;
+
+    // reading pre-results:
+    while let Some(result) = chat.next().await {
+        match result {
+            Ok(r) => if let Some(text) = r.text() { eprint!("{text}"); }else{ },
+            Err(e) => eprintln!("Error: {e}"),
+        }
     }
+
+    Ok(())
 }

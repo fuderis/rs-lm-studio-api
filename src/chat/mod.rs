@@ -1,6 +1,9 @@
 pub mod system_info;    pub use system_info::SystemInfo;
 
+pub mod image;          pub use image::Image;
+
 pub mod role;           pub use role::Role;
+pub mod content;        pub use content::Content;
 pub mod message;        pub use message::Message;
 pub mod format;         pub use format::{ Format, FormatKind };
 pub mod schema;         pub use schema::{ JsonSchema, Schema, SchemaKind };

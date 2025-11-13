@@ -16,4 +16,7 @@ pub enum Error {
 
     #[from]
     Json(serde_json::Error),
+
+    #[display = "Encoded base64 string is invalid"]
+    InvalidBase64Url,
 }

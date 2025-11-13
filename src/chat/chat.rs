@@ -17,8 +17,8 @@ pub struct Chat {
 
 impl Chat {
     /// Creates a new simple chat
-    pub async fn new<M: Into<Model>, C: Into<Context>>(model: M, context: C, port: u16) -> Result<Self> {
-        let mut chat = Self {
+    pub fn new<M: Into<Model>, C: Into<Context>>(model: M, context: C, port: u16) -> Self {
+        let chat = Self {
             model: model.into(),
             context: context.into(),
             host: fmt!("http://localhost:{port}"),
@@ -26,12 +26,15 @@ impl Chat {
             reader: None,
         };
 
+        /*
         // loading model:
         chat.load_model(chat.model.clone()).await?;
+        */
 
-        Ok(chat)
+        chat
     }
 
+    /*
     /// Loads AI model to memory
     pub async fn load_model<M: Into<Model>>(&mut self, model: M) -> Result<()> {
         let request = Prompt {
@@ -45,6 +48,7 @@ impl Chat {
 
         Ok(())
     }
+    */
 
     /// Send request to chat
     pub async fn send(&mut self, request: Request) -> Result<Option<Response>> {
@@ -94,6 +98,7 @@ impl Chat {
                 .json::<Response>()
                 .await?;
 
+            /*
             // filtering <think>..</think> block:
             if request.skip_think {
                 let re = re!(r"(?s)<think>.*?</think>");
@@ -103,12 +108,13 @@ impl Chat {
                     message.content = re.replace_all(&message.content, "").trim().to_string();
                 }
             }
+            */
 
             // add response to context:
             if request.context {
                 if let Some(choice) = response.choices.get(0) {
                     let message = choice.message.as_ref().unwrap();
-                    let answer = Message::new(Role::Assistant, message.content.clone());
+                    let answer = Message::new(Role::Assistant, message.text());
                     self.context.add(answer);
                 }
             }

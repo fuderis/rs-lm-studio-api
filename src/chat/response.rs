@@ -28,7 +28,7 @@ impl Response {
     /// Returns response text
     pub fn text(&self) -> Option<String> {
         if !self.choices.is_empty() {
-            let text = self.choices[0].text().clone().unwrap();
+            let text = self.choices[0].text();
             
             Some(text)
         } else {
@@ -69,7 +69,7 @@ impl ResponseReader {
     pub fn new(receiver: UnboundedReceiverStream<Result<StreamChoice>>, context: bool) -> Self {
         Self {
             receiver,
-            message: Message { role: Role::Assistant, content: str!("") },
+            message: Message { role: Role::Assistant, content: vec!["".into()] },
             is_ready: false,
             context
         }
@@ -83,8 +83,8 @@ impl ResponseReader {
             Some(result) => {
                 match result {
                     Ok(choice) => {
-                        if let Some(text) = choice.text() {
-                            self.message.content.push_str(&text);
+                        if let Some(chunk) = choice.text() {
+                            self.message.content[0].add_chunk(&chunk);
                         }
 
                         Some(Ok(choice))
