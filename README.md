@@ -62,7 +62,7 @@ async fn main() -> Result<()> {
                 role: Role::User,
                 content: vec![
                     Content::Text { text: "What is shown in the picture?".into() },
-                    Content::Image { image_url: Image::from_file("rust-logo.png").unwrap() }
+                    Content::Image { image: Image::from_file("rust-logo.png").unwrap() }
                 ]
             }
         ],
